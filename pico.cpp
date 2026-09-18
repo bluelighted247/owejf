@@ -1,0 +1,95 @@
+#include <Adafruit_NeoPixel.h>
+
+#define PIN 11  // ← NeoPixelのピンを指定してください（競合を避けるため11に設定）
+#define NUMPIXELS 9
+
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+
+// ボタンピン
+int btnPins[9] = {2,3,4,5,6,7,8,9,10};
+bool btnState[9];
+
+byte board[9] = {0};
+int turn = 1;
+byte difficulty = 1;
+
+void setup() {
+  Serial.begin(115200);
+
+  for (int i = 0; i < 9; i++) {
+    pinMode(btnPins[i], INPUT_PULLUP);
+  }
+
+  pixels.begin();
+  pixels.clear();
+  pixels.show();
+}
+
+void loop() {
+  readButtons();
+  checkDifficulty();
+  checkMove();
+  showBoard();
+  delay(50);
+}
+
+void readButtons() {
+  for (int i = 0; i < 9; i++) {
+    btnState[i] = (digitalRead(btnPins[i]) == LOW);
+  }
+}
+
+void checkDifficulty() {
+  if (btnState[0] && btnState[1] && btnState[2]) difficulty = 1;
+  if (btnState[3] && btnState[4] && btnState[5]) difficulty = 2;
+  if (btnState[6] && btnState[7] && btnState[8]) difficulty = 3;
+}
+
+void checkMove() {
+  for (int i = 0; i < 9; i++) {
+    if (btnState[i] && board[i] == 0) {
+      board[i] = turn;
+      turn = (turn == 1) ? 2 : 1;
+      checkWin();
+      delay(300);
+    }
+  }
+}
+
+void checkWin() {
+  int wins[8][3] = {
+    {0,1,2},{3,4,5},{6,7,8},
+    {0,3,6},{1,4,7},{2,5,8},
+    {0,4,8},{2,4,6}
+  };
+
+  for (int i = 0; i < 8; i++) {
+    int a = wins[i][0];
+    int b = wins[i][1];
+    int c = wins[i][2];
+
+    if (board[a] != 0 && board[a] == board[b] && board[a] == board[c]) {
+      Serial.print("Winner: ");
+      Serial.println(board[a]);
+
+      delay(2000);
+
+      for (int j = 0; j < 9; j++) board[j] = 0;
+      turn = 1;
+      return;
+    }
+  }
+}
+
+void showBoard() {
+  for (int i = 0; i < 9; i++) {
+    if (board[i] == 0) {
+      pixels.setPixelColor(i, pixels.Color(0, 0, 0)); // 空白＝消灯
+    } else if (board[i] == 1) {
+      pixels.setPixelColor(i, pixels.Color(0, 0, 255)); // ○＝青
+    } else if (board[i] == 2) {
+      pixels.setPixelColor(i, pixels.Color(255, 0, 0)); // ×＝赤
+    }
+  }
+  pixels.show();
+}
